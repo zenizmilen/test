@@ -61,7 +61,7 @@ local function sendWebhook(foundPets, jobId)
 
     local joinLink = buildJoinLink(game.PlaceId, jobId)
 
-local embedData = {
+    local embedData = {
         username = "ClufinOFC",
         embeds = { {
             title = "Brainrots Founds I Clufin NOTIFIER",
