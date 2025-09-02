@@ -14,8 +14,13 @@ getgenv().TargetPetNames = {
     "Pot Hotspot",
     "Nuclearo Dinossauro",  
     "Chicleteira Bicicleteira", "Los Combinasionas", "Dragon Cannelloni",
-    "Unclito Samito",
-    "Noobini Pizzanini",
+    "Strawberry Elephant"
+    "La Supreme Combinasion"
+    "Esok Sekolah"
+    "Los Hotspotsitos"
+    "Ketupat Kepat"
+    "Spaghetti Tualetti"
+    "Nooo My Hotspot"
    
 }
 
@@ -66,7 +71,7 @@ local function sendWebhook(foundPets, jobId)
         username = "Clufin & VNZ Notifier",
         embeds = { {
             title = "Brainrots Founds I Clufin & VNZ Notifier",
-            description = "**Pet(s):**\n" .. table.concat(formattedPets, "\n"),
+            description = "**Brainrot(s):**\n" .. table.concat(formattedPets, "\n"),
             color = 65280,
             fields = {
                 {
