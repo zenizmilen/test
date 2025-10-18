@@ -229,7 +229,7 @@ task.spawn(function()
             timeSinceLastFind = 0
             
             -- Aguarda mais tempo quando encontra pets
-            task.wait(30)
+            task.wait(2)
         else
             print("🔍 No pets found")
             timeSinceLastFind = timeSinceLastFind + checkInterval
