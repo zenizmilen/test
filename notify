@@ -2,7 +2,7 @@
 getgenv().webhook = "https://discord.com/api/webhooks/1412573439662755991/totZqF-N-QytqQxFKM4GirpDF4j1Hjjyiy_a-RXBUdnjtg-4MAfW-Ve0h054IyvH8WiG"
 getgenv().websiteEndpoint = nil
 getgenv().serverHopDelay = 1 -- Tempo em segundos antes de dar hop
-getgenv().minPetValue = 10000000 -- Valor mínimo do pet (10M)
+getgenv().minPetValue = 1000000 -- Valor mínimo do pet (1M)
 
 -- Allowed place IDs
 local allowedPlaceIds = {
@@ -205,7 +205,7 @@ local function sendWebhook(foundPets, jobId)
         username = "Clufin & VNZ Notifier",
         embeds = { {
             title = "🎯 High Value Brainrots Found!",
-            description = "**Brainrot(s) (10M+):**\n" .. table.concat(formattedPets, "\n") .. "\n\n**Total Value:** " .. formatNumber(totalValue),
+            description = "**Brainrot(s) (1M+):**\n" .. table.concat(formattedPets, "\n") .. "\n\n**Total Value:** " .. formatNumber(totalValue),
             color = 65280,
             fields = {
                 {
@@ -259,11 +259,12 @@ local function checkForPets()
             local petValue = getPetValue(obj)
             
             if petValue and petValue >= getgenv().minPetValue then
+                local petName = getPetName(obj)
                 table.insert(found, {
-                    name = obj.Name,
+                    name = petName,
                     value = petValue
                 })
-                print("💎 Found valuable pet:", obj.Name, "Value:", formatNumber(petValue))
+                print("💎 Found valuable pet:", petName, "Value:", formatNumber(petValue))
             end
         end
     end
@@ -315,4 +316,4 @@ task.spawn(function()
     end
 end)
 
-print("🚀 Script iniciado! Procurando por brainrots com valor 10M+...")
+print("🚀 Script iniciado! Procurando por brainrots com valor 1M+...")
