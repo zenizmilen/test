@@ -1,6 +1,7 @@
 --CONFIG
 getgenv().webhook = "https://discord.com/api/webhooks/1412573439662755991/totZqF-N-QytqQxFKM4GirpDF4j1Hjjyiy_a-RXBUdnjtg-4MAfW-Ve0h054IyvH8WiG"
 getgenv().websiteEndpoint = nil
+getgenv().serverHopDelay = 3 -- Tempo em segundos antes de dar hop se não encontrar pets
 
 -- Allowed place IDs
 local allowedPlaceIds = {
@@ -14,19 +15,19 @@ getgenv().TargetPetNames = {
     "Pot Hotspot",
     "Nuclearo Dinossauro",  
     "Chicleteira Bicicleteira", "Los Combinasionas", "Dragon Cannelloni",
-    "Strawberry Elephant"
-    "La Supreme Combinasion"
-    "Esok Sekolah"
-    "Los Hotspotsitos"
-    "Ketupat Kepat"
-    "Spaghetti Tualetti"
+    "Strawberry Elephant",
+    "La Supreme Combinasion",
+    "Esok Sekolah",
+    "Los Hotspotsitos",
+    "Ketupat Kepat",
+    "Spaghetti Tualetti",
     "Nooo My Hotspot"
-   
 }
 
 -- SERVICES
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 
 -- PRIVATE SERVER CHECK (works for VIP + Reserved)
@@ -51,6 +52,51 @@ elseif not allowedPlaceIds[game.PlaceId] then
     local joinLink = buildJoinLink(game.PlaceId, game.JobId)
     LocalPlayer:Kick("Kicked because wrong game\nClick to join server:\n" .. joinLink)
     return
+end
+
+-- SERVER HOP FUNCTION
+local function serverHop()
+    print("🔄 Iniciando server hop...")
+    
+    local success, result = pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGet(
+            "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        ))
+        
+        if servers and servers.data then
+            local validServers = {}
+            
+            -- Filtra servidores (ignora o atual e servidores cheios)
+            for _, server in pairs(servers.data) do
+                if server.id ~= game.JobId and server.playing < server.maxPlayers then
+                    table.insert(validServers, server)
+                end
+            end
+            
+            if #validServers > 0 then
+                -- Escolhe um servidor aleatório
+                local randomServer = validServers[math.random(1, #validServers)]
+                print("✈️ Teleportando para servidor com " .. randomServer.playing .. "/" .. randomServer.maxPlayers .. " jogadores")
+                
+                TeleportService:TeleportToPlaceInstance(
+                    game.PlaceId,
+                    randomServer.id,
+                    LocalPlayer
+                )
+            else
+                print("⚠️ Nenhum servidor disponível, tentando teleporte normal...")
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end
+        end
+    end)
+    
+    if not success then
+        warn("❌ Erro no server hop:", result)
+        -- Fallback: teleporte simples
+        pcall(function()
+            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        end)
+    end
 end
 
 -- WEBHOOK SEND
@@ -133,58 +179,32 @@ local function checkForPets()
     return found
 end
 
--- MAIN LOOP
+-- MAIN LOOP WITH SERVER HOP
 task.spawn(function()
+    local checkCount = 0
+    local maxChecksBeforeHop = 3 -- Número de verificações antes de dar hop
+    
     while true do
         local petsFound = checkForPets()
+        
         if #petsFound > 0 then
             print("✅ Pets found:", table.concat(petsFound, ", "))
             sendWebhook(petsFound, game.JobId)
+            checkCount = 0 -- Reseta o contador quando encontra pets
         else
-            print("🔍 No pets found")
+            checkCount = checkCount + 1
+            print("🔍 No pets found (Check " .. checkCount .. "/" .. maxChecksBeforeHop .. ")")
+            
+            if checkCount >= maxChecksBeforeHop then
+                print("⏭️ Nenhum pet encontrado após " .. maxChecksBeforeHop .. " verificações. Dando hop...")
+                task.wait(2)
+                serverHop()
+                return -- Encerra o loop atual (será reiniciado no novo servidor)
+            end
         end
-        task.wait(15)
+        
+        task.wait(getgenv().serverHopDelay)
     end
 end)
 
--- Auto Server Hop ultra-agressivo e estável
-    spawn(function()
-        local checkedServers = {}
-        local placeId = game.PlaceId
-
-        while true do
-            pcall(function()
-                local serversData
-                for attempt = 1, 3 do
-                    local success, res = pcall(function()
-                        local response = game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")
-                        return HttpService:JSONDecode(response)
-                    end)
-                    if success and res and res.data then
-                        serversData = res
-                        break
-                    end
-                    wait(0.2)
-                end
-
-                if serversData and serversData.data then
-                    local found = false
-                    for _, s in ipairs(serversData.data) do
-                        if s.id ~= tostring(game.JobId) and s.playing < s.maxPlayers and not checkedServers[s.id] then
-                            checkedServers[s.id] = true
-                            found = true
-                            pcall(function()
-                                TeleportService:TeleportToPlaceInstance(placeId, s.id, Players.LocalPlayer)
-                            end)
-                            break
-                        end
-                    end
-                    if not found then
-                        checkedServers = {}
-                    end
-                end
-            end)
-            wait(0.3)
-        end
-    end)
-end
+print("🚀 Script iniciado! Procurando por brainrots...")
