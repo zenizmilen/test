@@ -58,11 +58,17 @@ local function serverHop()
     print("🔄 Iniciando server hop...")
     
     local success, result = pcall(function()
-        local servers = HttpService:JSONDecode(game:HttpGet(
-            "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        ))
+        print("📡 Buscando lista de servidores...")
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        print("URL:", url)
+        
+        local response = game:HttpGet(url)
+        print("✅ Resposta recebida")
+        
+        local servers = HttpService:JSONDecode(response)
         
         if servers and servers.data then
+            print("📊 Total de servidores encontrados:", #servers.data)
             local validServers = {}
             
             -- Filtra servidores (ignora o atual e servidores cheios)
@@ -72,10 +78,13 @@ local function serverHop()
                 end
             end
             
+            print("✅ Servidores válidos:", #validServers)
+            
             if #validServers > 0 then
                 -- Escolhe um servidor aleatório
                 local randomServer = validServers[math.random(1, #validServers)]
                 print("✈️ Teleportando para servidor com " .. randomServer.playing .. "/" .. randomServer.maxPlayers .. " jogadores")
+                print("🆔 Server ID:", randomServer.id)
                 
                 TeleportService:TeleportToPlaceInstance(
                     game.PlaceId,
@@ -86,15 +95,25 @@ local function serverHop()
                 print("⚠️ Nenhum servidor disponível, tentando teleporte normal...")
                 TeleportService:Teleport(game.PlaceId, LocalPlayer)
             end
+        else
+            warn("❌ Dados de servidores inválidos")
         end
     end)
     
     if not success then
-        warn("❌ Erro no server hop:", result)
+        warn("❌ Erro no server hop:")
+        warn(result)
+        print("🔄 Tentando método alternativo...")
+        
         -- Fallback: teleporte simples
-        pcall(function()
+        task.wait(2)
+        local fallbackSuccess = pcall(function()
             TeleportService:Teleport(game.PlaceId, LocalPlayer)
         end)
+        
+        if not fallbackSuccess then
+            warn("❌ Falha no teleporte de fallback também!")
+        end
     end
 end
 
