@@ -57,9 +57,6 @@ end
 local function serverHop()
     print("🔄 Iniciando server hop...")
     
-    -- Salva o script no clipboard para auto-execução (opcional)
-    local scriptContent = game:HttpGet("https://raw.githubusercontent.com/seu-repo/seu-script.lua") -- Ajuste se tiver o script hospedado
-    
     local success, result = pcall(function()
         local servers = HttpService:JSONDecode(game:HttpGet(
             "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -80,22 +77,14 @@ local function serverHop()
                 local randomServer = validServers[math.random(1, #validServers)]
                 print("✈️ Teleportando para servidor com " .. randomServer.playing .. "/" .. randomServer.maxPlayers .. " jogadores")
                 
-                -- Aguarda um pouco antes de teleportar
-                task.wait(1)
-                
                 TeleportService:TeleportToPlaceInstance(
                     game.PlaceId,
                     randomServer.id,
                     LocalPlayer
                 )
-                
-                -- Loop infinito para garantir que não execute código após teleporte
-                while true do task.wait(1) end
-                
             else
                 print("⚠️ Nenhum servidor disponível, tentando teleporte normal...")
                 TeleportService:Teleport(game.PlaceId, LocalPlayer)
-                while true do task.wait(1) end
             end
         end
     end)
@@ -103,11 +92,9 @@ local function serverHop()
     if not success then
         warn("❌ Erro no server hop:", result)
         -- Fallback: teleporte simples
-        task.wait(2)
         pcall(function()
             TeleportService:Teleport(game.PlaceId, LocalPlayer)
         end)
-        while true do task.wait(1) end
     end
 end
 
