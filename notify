@@ -1,7 +1,7 @@
 --CONFIG
 getgenv().webhook = "https://discord.com/api/webhooks/1412573439662755991/totZqF-N-QytqQxFKM4GirpDF4j1Hjjyiy_a-RXBUdnjtg-4MAfW-Ve0h054IyvH8WiG"
 getgenv().websiteEndpoint = nil
-getgenv().serverHopDelay = 3 -- Tempo em segundos antes de dar hop se não encontrar pets
+getgenv().serverHopDelay = 1 -- Tempo em segundos antes de dar hop se não encontrar pets
 
 -- Allowed place IDs
 local allowedPlaceIds = {
@@ -182,7 +182,7 @@ end
 -- MAIN LOOP WITH SERVER HOP
 task.spawn(function()
     local checkCount = 0
-    local maxChecksBeforeHop = 3 -- Número de verificações antes de dar hop
+    local maxChecksBeforeHop = 1 -- Número de verificações antes de dar hop
     
     while true do
         local petsFound = checkForPets()
