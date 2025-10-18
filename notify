@@ -188,8 +188,13 @@ local function serverHop()
         for i = 1, maxServerTries do
             local server = servers[i]
             
+            -- Verifica se o servidor tem pelo menos 4 pessoas
+            if server.playing < 4 then
+                print(string.format("⚠️ Servidor com poucas pessoas (%d/%d), pulando...", 
+                    server.playing, server.maxPlayers))
+                task.wait(0.2)
             -- Pula servidores que estão muito cheios (90%+ capacidade)
-            if server.playing >= server.maxPlayers * 0.9 then
+            elseif server.playing >= server.maxPlayers * 0.9 then
                 print(string.format("⚠️ Servidor quase cheio (%d/%d), pulando...", 
                     server.playing, server.maxPlayers))
                 task.wait(0.2)
