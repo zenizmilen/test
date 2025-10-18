@@ -245,6 +245,13 @@ task.spawn(function()
                 sendWebhook(petsFound, game.JobId)
                 lastWebhookTime = currentTime
                 print(string.format("📤 Webhook enviada. Próxima em %d segundos", getgenv().webhookCooldown))
+                
+                -- Aguarda 5 segundos e depois troca de servidor
+                print("⏳ Aguardando 5 segundos antes de trocar de servidor...")
+                task.wait(5)
+                print("🔄 Trocando de servidor após encontrar pets...")
+                serverHop()
+                break
             else
                 local timeRemaining = math.ceil(getgenv().webhookCooldown - (currentTime - lastWebhookTime))
                 print(string.format("⏳ Webhook em cooldown. Aguarde %d segundos", timeRemaining))
