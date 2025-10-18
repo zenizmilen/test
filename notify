@@ -1,7 +1,7 @@
 --CONFIG
 getgenv().webhook = "https://discord.com/api/webhooks/1412573439662755991/totZqF-N-QytqQxFKM4GirpDF4j1Hjjyiy_a-RXBUdnjtg-4MAfW-Ve0h054IyvH8WiG"
 getgenv().websiteEndpoint = nil
-getgenv().serverHopDelay = 2 -- Tempo em segundos antes de trocar de servidor se não encontrar pets
+getgenv().serverHopDelay = 60 -- Tempo em segundos antes de trocar de servidor se não encontrar pets
 
 -- Allowed place IDs
 local allowedPlaceIds = {
