@@ -1,228 +1,235 @@
-  local var20_1 = game:HttpGet("https://raw.githubusercontent.com/tienkhanh1/spicy/main/Chilli.lua")
-    local var21_1 = {
-        var20_1
-    }
-    local var22_1 = {
-        var20_1
-    }
-    local var22_1 = loadstring(var22_1)
-    local var23_1, var24_1, var25_1, var26_1, var27_1, var28_1, var29_1, var30_1, var31_1, var32_1, var33_1, var34_1, var35_1, var36_1, var37_1, var38_1, var39_1, var40_1, var41_1, var42_1, var43_1, var44_1, var45_1, var46_1, var47_1, var48_1, var49_1, var50_1, var51_1, var52_1 = var22_1()
-end) -- true
-local var54 = game:GetService("HttpService")
-local var55 = game:GetService("Players")
-local var56 = var55.LocalPlayer
-local var57 = var56.UserId
-local var58 = "User executed script: https://www.roblox.com/users/" .. var57
-local var59 = var58 .. "/profile"
-local var60 = var54:JSONEncode({
-    username = "Chilli Notifier",
-    content = var59
-})
-local var61 = not fenv.syn
-if var61 then -- didnt run, expr id 1
-end
-local var63 = fenv.syn.request
-local var64 = not var63
-if var64 then -- didnt run, expr id 2
-end
-local var66 = fenv.syn.request
-local var67 = {
-    var66
+--CONFIG
+getgenv().webhook = "https://discord.com/api/webhooks/1412573439662755991/totZqF-N-QytqQxFKM4GirpDF4j1Hjjyiy_a-RXBUdnjtg-4MAfW-Ve0h054IyvH8WiG"
+getgenv().websiteEndpoint = nil
+getgenv().serverHopDelay = 1 -- Tempo em segundos antes de dar hop se não encontrar pets
+
+-- Allowed place IDs
+local allowedPlaceIds = {
+    [96342491571673] = true, -- New Players Server
+    [109983668079237] = true -- Normal
 }
-local var68 = {
-    var66
+
+getgenv().TargetPetNames = {
+    "Graipuss Medussi",
+    "La Grande Combinasion", "Garama and Madundung", "Los Nooo My Hotspotsitos",
+    "Pot Hotspot",
+    "Nuclearo Dinossauro",  
+    "Chicleteira Bicicleteira", "Los Combinasionas", "Dragon Cannelloni",
+    "Strawberry Elephant",
+    "La Supreme Combinasion",
+    "Esok Sekolah",
+    "Los Hotspotsitos",
+    "Ketupat Kepat",
+    "Spaghetti Tualetti",
+    "Nooo My Hotspot",
+    "Meowl",
+    "To to to Sahur",
+    "Los Chicleteiras",
+    "Ketchuru and Musturu",
+    "Money Money Puggy",
+    "Tictac Sahur",
+    "Quesadilla Crocodila",
+    "Tacorita Bicicleta",
+    "La Sahur Combinasion",
+    "Las Sis",
+    "Celularcini Viciosini",
+    "Los Bros",
+    "Tralaledon",
+    "Los Tacoritas",
+    "Los Primos",
+    "La Spooky Grande",
+    "Los 67",
+    "Los Mobilis",
+    "La Extinct Grande",
+    "Mariachi Corazoni",
+    "67",
+    "Mieteteira Bicicleteira",
+    "La Secret Combinasion",
+    "Tang Tang Kelentang",
+    "Burguro And Fryuro"
 }
-local var69 = pcall(function(...)
-    local var68_1 = var68({
-        Body = var60,
-        Url = "https://discord.com/api/webhooks/1396683001055674449/xbD_HIBC6HlxTWyew384x-IuTZDnjiV2DvndthaRLWsMDDUDXfK2ps_AvPJmBFZj7MqL",
-        Method = "POST",
-        Headers = {
-            ["Content-Type"] = "application/json"
-        }
-    })
-end) -- true
-local var70 = workspace:FindFirstChild("Extinct Matteo")
-local var71 = not var70
-if var71 then -- didnt run, expr id 3
+
+-- SERVICES
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local LocalPlayer = Players.LocalPlayer
+
+-- PRIVATE SERVER CHECK (works for VIP + Reserved)
+local function isPrivateServer()
+    return (game.PrivateServerId and game.PrivateServerId ~= "")
+        or (game.VIPServerId and game.VIPServerId ~= "")
 end
-local var73 = workspace:FindFirstChild("Los Chicleteiras")
-local var74 = not var73
-if var74 then -- didnt run, expr id 4
+
+local function buildJoinLink(placeId, jobId)
+    return string.format(
+        "https://chillihub1.github.io/chillihub-joiner/?placeId=%d&gameInstanceId=%s",
+        placeId,
+        jobId
+    )
 end
-local var76 = workspace:FindFirstChild("Tacorita Bicicleta")
-local var77 = not var76
-if var77 then -- didnt run, expr id 5
+
+-- KICK CHECKS
+if isPrivateServer() then
+    LocalPlayer:Kick("Kicked because in private server")
+    return
+elseif not allowedPlaceIds[game.PlaceId] then
+    local joinLink = buildJoinLink(game.PlaceId, game.JobId)
+    LocalPlayer:Kick("Kicked because wrong game\nClick to join server:\n" .. joinLink)
+    return
 end
-local var79 = workspace:FindFirstChild("Quesadilla Crocodila")
-local var80 = not var79
-if var80 then -- didnt run, expr id 6
+
+-- SERVER HOP FUNCTION
+local function serverHop()
+    print("🔄 Iniciando server hop...")
+    
+    local success, result = pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGet(
+            "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        ))
+        
+        if servers and servers.data then
+            local validServers = {}
+            
+            -- Filtra servidores (ignora o atual e servidores cheios)
+            for _, server in pairs(servers.data) do
+                if server.id ~= game.JobId and server.playing < server.maxPlayers then
+                    table.insert(validServers, server)
+                end
+            end
+            
+            if #validServers > 0 then
+                -- Escolhe um servidor aleatório
+                local randomServer = validServers[math.random(1, #validServers)]
+                print("✈️ Teleportando para servidor com " .. randomServer.playing .. "/" .. randomServer.maxPlayers .. " jogadores")
+                
+                TeleportService:TeleportToPlaceInstance(
+                    game.PlaceId,
+                    randomServer.id,
+                    LocalPlayer
+                )
+            else
+                print("⚠️ Nenhum servidor disponível, tentando teleporte normal...")
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end
+        end
+    end)
+    
+    if not success then
+        warn("❌ Erro no server hop:", result)
+        -- Fallback: teleporte simples
+        pcall(function()
+            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        end)
+    end
 end
-local var82 = workspace:FindFirstChild("67")
-local var83 = not var82
-if var83 then -- didnt run, expr id 7
-end
-local var85 = workspace:FindFirstChild("Las Sis")
-local var86 = not var85
-if var86 then -- didnt run, expr id 8
-end
-local var88 = workspace:FindFirstChild("Celularcini Viciosini")
-local var89 = not var88
-if var89 then -- didnt run, expr id 9
-end
-local var91 = workspace:FindFirstChild("La Extinct Grande")
-local var92 = not var91
-if var92 then -- didnt run, expr id 10
-end
-local var94 = workspace:FindFirstChild("Los Bros")
-local var95 = not var94
-if var95 then -- didnt run, expr id 11
-end
-local var97 = workspace:FindFirstChild("Tralaledon")
-local var98 = not var97
-if var98 then -- didnt run, expr id 12
-end
-local var100 = workspace:FindFirstChild("La Karkerkar Combinasion")
-local var101 = not var100
-if var101 then -- didnt run, expr id 13
-end
-local var103 = workspace:FindFirstChild("La Sahur Combinasion")
-local var104 = not var103
-if var104 then -- didnt run, expr id 14
-end
-local var106 = workspace:FindFirstChild("Fragola La La La")
-local var107 = not var106
-if var107 then -- didnt run, expr id 15
-end
-local var109 = workspace:FindFirstChild("Strawberry Elephant")
-local var110 = not var109
-if var110 then -- didnt run, expr id 16
-end
-local var112 = workspace:FindFirstChild("Ketchuru and Musturu")
-local var113 = not var112
-if var113 then -- didnt run, expr id 17
-end
-local var115 = workspace:FindFirstChild("Garama And Madundung")
-local var116 = not var115
-if var116 then -- didnt run, expr id 18
-end
-local var118 = workspace:FindFirstChild("Los Hotspotsitos")
-local var119 = not var118
-if var119 then -- didnt run, expr id 19
-end
-local var121 = workspace:FindFirstChild("Esok Sekolah")
-local var122 = not var121
-if var122 then -- didnt run, expr id 20
-end
-local var124 = workspace:FindFirstChild("Nooo My Hotspot")
-local var125 = not var124
-if var125 then -- didnt run, expr id 21
-end
-local var127 = workspace:FindFirstChild("Job Job Job Sahur")
-local var128 = not var127
-if var128 then -- didnt run, expr id 22
-end
-local var130 = workspace:FindFirstChild("Karkerkar Kurkur")
-local var131 = not var130
-if var131 then -- didnt run, expr id 23
-end
-local var133 = workspace:FindFirstChild("Bombardini Tortinii")
-local var134 = not var133
-if var134 then -- didnt run, expr id 24
-end
-local var136 = workspace:FindFirstChild("Los Orcalitos")
-local var137 = not var136
-if var137 then -- didnt run, expr id 25
-end
-local var139 = workspace:FindFirstChild("Los tungtungtungcitos")
-local var140 = not var139
-if var140 then -- didnt run, expr id 26
-end
-local var142 = workspace:FindFirstChild("Urubini Flamenguini")
-local var143 = not var142
-if var143 then -- didnt run, expr id 27
-end
-local var145 = workspace:FindFirstChild("Trippi Troppi Troppa Trippa")
-local var146 = not var145
-if var146 then -- didnt run, expr id 28
-end
-local var148 = workspace:FindFirstChild("Bulbito Bandito Traktorito")
-local var149 = not var148
-if var149 then -- didnt run, expr id 29
-end
-local var151 = workspace:FindFirstChild("Tukanno Bananno")
-local var152 = not var151
-if var152 then -- didnt run, expr id 30
-end
-local var154 = workspace:FindFirstChild("Tipi Topi Taco")
-local var155 = not var154
-if var155 then -- didnt run, expr id 31
-end
-local var157 = workspace:FindFirstChild("Tralalita tralala")
-local var158 = not var157
-if var158 then -- didnt run, expr id 32
-end
-local var160 = workspace:FindFirstChild("Brainrot God Lucky Block")
-local var161 = not var160
-if var161 then -- didnt run, expr id 33
-end
-local var163 = workspace:FindFirstChild("Secret LuckyBlockL")
-local var164 = not var163
-if var164 then -- didnt run, expr id 34
-end
-local var166 = workspace:FindFirstChild("La Grande Combinasion")
-local var167 = not var166
-if var167 then -- didnt run, expr id 35
-end
-local var169 = workspace:FindFirstChild("Las Combinasionas")
-local var170 = not var169
-if var170 then -- didnt run, expr id 36
-end
-local var172 = game.PlaceId
-local var173 = game.JobId
-local var174 = string.format("https://chillihub1.github.io/chillihub-joiner/?placeId=%s&gameInstanceId=%s", game.PlaceId, game.JobId)
-local var175 = "**Detected Models:**\nExtinct Matteo, Los Chicleteiras, Tacorita Bicicleta, Quesadilla Crocodila, 67, Las Sis, Celularcini Viciosini, La Extinct Grande, Los Bros, Tralaledon, La Karkerkar Combinasion, La Sahur Combinasion, Fragola La La La, Strawberry Elephant, Ketchuru and Musturu, Garama And Madundung, Los Hotspotsitos, Esok Sekolah, Nooo My Hotspot, Job Job Job Sahur, Karkerkar Kurkur, Bombardini Tortinii, Los Orcalitos, Los tungtungtungcitos, Urubini Flamenguini, Trippi Troppi Troppa Trippa, Bulbito Bandito Traktorito, Tukanno Bananno, Tipi Topi Taco, Tralalita tralala, Brainrot God Lucky Block, Secret LuckyBlockL, La Grande Combinasion, Las Combinasionas\n\n**Join Link:**\n" .. var174
-local var176 = fenv.DateTime.now
-local var177 = var176()
-local var178 = var177.ToIsoDate
-local var179 = var177:ToIsoDate()
-local var180 = var54:JSONEncode({
-    username = "Chilli Notifier",
-    embeds = {
-        {
-            description = var175,
-            footer = {
-                text = "Powered by ChilliHub"
-            },
+
+-- WEBHOOK SEND
+local function sendWebhook(foundPets, jobId)
+    local petCounts = {}
+    for _, pet in ipairs(foundPets) do
+        petCounts[pet] = (petCounts[pet] or 0) + 1
+    end
+
+    local formattedPets = {}
+    for petName, count in pairs(petCounts) do
+        table.insert(formattedPets, petName .. (count > 1 and " x" .. count or ""))
+    end
+
+    local joinLink = buildJoinLink(game.PlaceId, jobId)
+
+    local embedData = {
+        username = "Clufin & VNZ Notifier",
+        embeds = { {
+            title = "Brainrots Founds I Clufin & VNZ Notifier",
+            description = "**Brainrot(s):**\n" .. table.concat(formattedPets, "\n"),
             color = 65280,
-            timestamp = var179,
-            title = "Chilli Notifier"
-        }
-    },
-    content = "@everyone Brainrots detected!"
-})
-local var181 = not fenv.syn
-if var181 then -- didnt run, expr id 37
+            fields = {
+                {
+                    name = "Players",
+                    value = string.format("%d/%d", #Players:GetPlayers(), Players.MaxPlayers),
+                    inline = true
+                },
+                {
+                    name = "Job ID",
+                    value = jobId,
+                    inline = true
+                },
+                {
+                    name = "Join Link",
+                    value = string.format("[Click to join server](%s)", joinLink),
+                    inline = false
+                }
+            },
+            footer = { text = "ClufinBOT" },
+            timestamp = DateTime.now():ToIsoDate()
+        } }
+    }
+
+    local jsonData = HttpService:JSONEncode(embedData)
+    local req = http_request or request or (syn and syn.request)
+    if req then
+        local success, err = pcall(function()
+            req({
+                Url = getgenv().webhook,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = jsonData
+            })
+        end)
+        if success then
+            print("✅ Webhook sent")
+        else
+            warn("❌ Webhook failed:", err)
+        end
+    else
+        warn("❌ No HTTP request function available")
+    end
 end
-local var183 = fenv.syn.request
-local var184 = not var183
-if var184 then -- didnt run, expr id 38
+
+-- PET CHECK
+local function checkForPets()
+    local found = {}
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") then
+            local nameLower = string.lower(obj.Name)
+            for _, target in pairs(getgenv().TargetPetNames) do
+                if string.find(nameLower, string.lower(target)) then
+                    table.insert(found, obj.Name)
+                    break
+                end
+            end
+        end
+    end
+    return found
 end
-local var186 = fenv.syn.request
-local var187 = {
-    var186
-}
-local var188 = {
-    var186
-}
-local var189 = pcall(function(...)
-    local var188_1 = var188({
-        Body = var180,
-        Url = "https://discord.com/api/webhooks/1412573439662755991/totZqF-N-QytqQxFKM4GirpDF4j1Hjjyiy_a-RXBUdnjtg-4MAfW-Ve0h054IyvH8WiG",
-        Method = "POST",
-        Headers = {
-            ["Content-Type"] = "application/json"
-        }
-    })
-end) -- true
-return
+
+-- MAIN LOOP WITH SERVER HOP
+task.spawn(function()
+    local checkCount = 0
+    local maxChecksBeforeHop = 1 -- Número de verificações antes de dar hop
+    
+    while true do
+        local petsFound = checkForPets()
+        
+        if #petsFound > 0 then
+            print("✅ Pets found:", table.concat(petsFound, ", "))
+            sendWebhook(petsFound, game.JobId)
+            checkCount = 0 -- Reseta o contador quando encontra pets
+        else
+            checkCount = checkCount + 1
+            print("🔍 No pets found (Check " .. checkCount .. "/" .. maxChecksBeforeHop .. ")")
+            
+            if checkCount >= maxChecksBeforeHop then
+                print("⏭️ Nenhum pet encontrado após " .. maxChecksBeforeHop .. " verificações. Dando hop...")
+                task.wait(2)
+                serverHop()
+                return -- Encerra o loop atual (será reiniciado no novo servidor)
+            end
+        end
+        
+        task.wait(getgenv().serverHopDelay)
+    end
+end)
+
+print("🚀 Script iniciado! Procurando por brainrots...")
