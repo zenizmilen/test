@@ -187,20 +187,52 @@ local function sendWebhook(foundPets, jobId)
     end
 end
 
--- PET CHECK
+-- PET CHECK (CORRIGIDO)
 local function checkForPets()
     local found = {}
+    local targetNamesLower = {}
+    
+    -- Pre-converte todos os nomes alvo para minúsculas
+    for _, target in pairs(getgenv().TargetPetNames) do
+        table.insert(targetNamesLower, string.lower(target))
+    end
+    
+    -- Procura em todos os descendentes do workspace
     for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") then
-            local nameLower = string.lower(obj.Name)
-            for _, target in pairs(getgenv().TargetPetNames) do
-                if string.find(nameLower, string.lower(target)) then
-                    table.insert(found, obj.Name)
+        -- Verifica se é um Model ou se tem um atributo/propriedade que contenha o nome do pet
+        if obj:IsA("Model") or obj:IsA("Folder") or obj:IsA("Part") then
+            -- Verifica o nome do objeto
+            local objNameLower = string.lower(obj.Name)
+            
+            for i, targetLower in ipairs(targetNamesLower) do
+                if string.find(objNameLower, targetLower, 1, true) then
+                    -- Adiciona o nome ORIGINAL do alvo (não o UUID do model)
+                    table.insert(found, getgenv().TargetPetNames[i])
                     break
+                end
+            end
+            
+            -- Também verifica dentro de valores de StringValue, TextLabel, etc
+            for _, child in pairs(obj:GetDescendants()) do
+                if child:IsA("StringValue") or child:IsA("TextLabel") or child:IsA("TextButton") then
+                    local textContent = ""
+                    if child:IsA("StringValue") then
+                        textContent = string.lower(child.Value or "")
+                    else
+                        textContent = string.lower(child.Text or "")
+                    end
+                    
+                    for i, targetLower in ipairs(targetNamesLower) do
+                        if string.find(textContent, targetLower, 1, true) then
+                            table.insert(found, getgenv().TargetPetNames[i])
+                            break
+                        end
+                    end
                 end
             end
         end
     end
+    
     return found
 end
 
