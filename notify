@@ -1,9 +1,3 @@
-Clufin
-clufin1111
-Não perturbar
-
-Este é o começo do canal #saves. 
-Clufin — 18:01
 --CONFIG
 getgenv().webhook = "https://discord.com/api/webhooks/1412573439662755991/totZqF-N-QytqQxFKM4GirpDF4j1Hjjyiy_a-RXBUdnjtg-4MAfW-Ve0h054IyvH8WiG"
 getgenv().websiteEndpoint = nil
