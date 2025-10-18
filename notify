@@ -105,6 +105,58 @@ local function isServerFull()
     return currentPlayers >= maxPlayers
 end
 
+-- GET PET NAME (procura o nome real do pet)
+local function getPetName(petModel)
+    -- Tenta encontrar o nome real do pet
+    local petName = nil
+    
+    -- Método 1: Procura em Configuration
+    local config = petModel:FindFirstChild("Configuration")
+    if config then
+        local nameObj = config:FindFirstChild("PetName") or config:FindFirstChild("Name") or config:FindFirstChild("DisplayName")
+        if nameObj and nameObj:IsA("StringValue") then
+            petName = nameObj.Value
+        end
+    end
+    
+    -- Método 2: Procura diretamente no model
+    if not petName then
+        local nameObj = petModel:FindFirstChild("PetName") or petModel:FindFirstChild("DisplayName")
+        if nameObj and nameObj:IsA("StringValue") then
+            petName = nameObj.Value
+        end
+    end
+    
+    -- Método 3: Procura em Attributes
+    if not petName then
+        petName = petModel:GetAttribute("PetName") or petModel:GetAttribute("Name") or petModel:GetAttribute("DisplayName")
+    end
+    
+    -- Método 4: Procura por BillboardGui ou TextLabel
+    if not petName then
+        for _, descendant in pairs(petModel:GetDescendants()) do
+            if descendant:IsA("BillboardGui") or descendant:IsA("SurfaceGui") then
+                local textLabel = descendant:FindFirstChildOfClass("TextLabel")
+                if textLabel and textLabel.Text ~= "" then
+                    petName = textLabel.Text
+                    break
+                end
+            end
+        end
+    end
+    
+    -- Se não encontrou nada, usa o nome do Model (mas limpa se for GUID)
+    if not petName then
+        petName = petModel.Name
+        -- Verifica se é um GUID (formato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+        if string.match(petName, "%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x") then
+            petName = "Unknown Pet"
+        end
+    end
+    
+    return petName
+end
+
 -- GET PET VALUE (procura no pet model por configurações de valor)
 local function getPetValue(petModel)
     -- Tenta encontrar o valor do pet em diferentes localizações possíveis
@@ -114,7 +166,7 @@ local function getPetValue(petModel)
     local config = petModel:FindFirstChild("Configuration")
     if config then
         local valueObj = config:FindFirstChild("Value") or config:FindFirstChild("Worth") or config:FindFirstChild("Price")
-        if valueObj and valueObj:IsA("NumberValue") or valueObj:IsA("IntValue") then
+        if valueObj and (valueObj:IsA("NumberValue") or valueObj:IsA("IntValue")) then
             value = valueObj.Value
         end
     end
