@@ -208,6 +208,9 @@ end
 
 -- WEBHOOK SEND
 local function sendWebhook(foundPets, jobId)
+    print("📤 Preparando webhook...")
+    print("🎯 Pets para enviar:", #foundPets)
+    
     local formattedPets = {}
     local totalValue = 0
     
@@ -216,6 +219,7 @@ local function sendWebhook(foundPets, jobId)
         local petValue = petData.value
         totalValue = totalValue + petValue
         table.insert(formattedPets, string.format("%s - **%s**", petName, formatNumber(petValue)))
+        print("📝 Formatado:", petName, "-", formatNumber(petValue))
     end
 
     local joinLink = buildJoinLink(game.PlaceId, jobId)
@@ -248,9 +252,13 @@ local function sendWebhook(foundPets, jobId)
         } }
     }
 
+    print("🔄 Convertendo para JSON...")
     local jsonData = HttpService:JSONEncode(embedData)
+    print("✅ JSON criado, tamanho:", #jsonData, "caracteres")
+    
     local req = http_request or request or (syn and syn.request)
     if req then
+        print("📡 Enviando webhook...")
         local success, err = pcall(function()
             req({
                 Url = getgenv().webhook,
@@ -260,33 +268,45 @@ local function sendWebhook(foundPets, jobId)
             })
         end)
         if success then
-            print("✅ Webhook sent")
+            print("✅ Webhook enviado com sucesso!")
         else
             warn("❌ Webhook failed:", err)
         end
     else
         warn("❌ No HTTP request function available")
+        warn("Funções testadas: http_request, request, syn.request")
     end
 end
 
 -- PET CHECK (verifica valor ao invés de nome)
 local function checkForPets()
     local found = {}
+    print("🔍 Iniciando busca por pets...")
+    print("📦 Total de objetos no workspace:", #workspace:GetDescendants())
     
+    local modelsChecked = 0
     for _, obj in pairs(workspace:GetDescendants()) do
         if obj:IsA("Model") then
+            modelsChecked = modelsChecked + 1
             local petValue = getPetValue(obj)
             
-            if petValue and petValue >= getgenv().minPetValue then
-                local petName = getPetName(obj)
-                table.insert(found, {
-                    name = petName,
-                    value = petValue
-                })
-                print("💎 Found valuable pet:", petName, "Value:", formatNumber(petValue))
+            if petValue then
+                print("💰 Model encontrado:", obj.Name, "| Valor:", petValue)
+                
+                if petValue >= getgenv().minPetValue then
+                    local petName = getPetName(obj)
+                    table.insert(found, {
+                        name = petName,
+                        value = petValue
+                    })
+                    print("✅ Pet valioso adicionado:", petName, "| Valor:", formatNumber(petValue))
+                end
             end
         end
     end
+    
+    print("📊 Total de Models verificados:", modelsChecked)
+    print("💎 Total de pets valiosos encontrados:", #found)
     
     return found
 end
