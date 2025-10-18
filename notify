@@ -2,6 +2,7 @@
 getgenv().webhook = "https://discord.com/api/webhooks/1412573439662755991/totZqF-N-QytqQxFKM4GirpDF4j1Hjjyiy_a-RXBUdnjtg-4MAfW-Ve0h054IyvH8WiG"
 getgenv().websiteEndpoint = nil
 getgenv().serverHopDelay = 2 -- Tempo em segundos antes de trocar de servidor se não encontrar pets
+getgenv().webhookCooldown = 80 -- Tempo em segundos entre envios de webhook
 
 -- Allowed place IDs
 local allowedPlaceIds = {
@@ -143,7 +144,7 @@ local function serverHop()
     local servers = {}
     local cursor = ""
     local attempts = 0
-    local maxAttempts = 3
+    local maxAttempts = 5
     
     -- Busca servidores disponíveis
     repeat
@@ -171,7 +172,7 @@ local function serverHop()
             break
         end
         
-        task.wait(1)
+        task.wait(0.5)
     until cursor == "" or attempts >= maxAttempts
     
     -- Tenta entrar em um servidor
@@ -182,22 +183,33 @@ local function serverHop()
             servers[i], servers[j] = servers[j], servers[i]
         end
         
-        -- Tenta entrar nos servidores
-        for _, server in pairs(servers) do
-            local success, err = pcall(function()
-                print(string.format("🚀 Tentando entrar em servidor (%d/%d players)...", 
+        -- Tenta entrar nos servidores (tenta até 10 servidores)
+        local maxServerTries = math.min(10, #servers)
+        for i = 1, maxServerTries do
+            local server = servers[i]
+            
+            -- Pula servidores que estão muito cheios (90%+ capacidade)
+            if server.playing >= server.maxPlayers * 0.9 then
+                print(string.format("⚠️ Servidor quase cheio (%d/%d), pulando...", 
                     server.playing, server.maxPlayers))
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
-            end)
-            
-            if success then
-                print("✅ Teleportando para novo servidor...")
-                return true
+                task.wait(0.2)
             else
-                warn("❌ Falha ao entrar no servidor:", err)
+                local success, err = pcall(function()
+                    print(string.format("🚀 Tentando entrar em servidor (%d/%d players)...", 
+                        server.playing, server.maxPlayers))
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
+                end)
+                
+                if success then
+                    print("✅ Teleportando para novo servidor...")
+                    return true
+                else
+                    warn("❌ Falha ao entrar no servidor:", err)
+                    print("🔄 Tentando próximo servidor...")
+                end
+                
+                task.wait(1)
             end
-            
-            task.wait(2)
         end
     end
     
@@ -218,18 +230,28 @@ end
 
 -- MAIN LOOP
 local timeSinceLastFind = 0
-local checkInterval = 15
+local checkInterval = 2 -- Checa a cada 2 segundos
+local lastWebhookTime = 0
 
 task.spawn(function()
     while true do
         local petsFound = checkForPets()
         if #petsFound > 0 then
             print("✅ Pets found:", table.concat(petsFound, ", "))
-            sendWebhook(petsFound, game.JobId)
-            timeSinceLastFind = 0
             
-            -- Aguarda mais tempo quando encontra pets
-            task.wait(2)
+            -- Envia webhook apenas se passou o tempo de cooldown
+            local currentTime = tick()
+            if currentTime - lastWebhookTime >= getgenv().webhookCooldown then
+                sendWebhook(petsFound, game.JobId)
+                lastWebhookTime = currentTime
+                print(string.format("📤 Webhook enviada. Próxima em %d segundos", getgenv().webhookCooldown))
+            else
+                local timeRemaining = math.ceil(getgenv().webhookCooldown - (currentTime - lastWebhookTime))
+                print(string.format("⏳ Webhook em cooldown. Aguarde %d segundos", timeRemaining))
+            end
+            
+            timeSinceLastFind = 0
+            task.wait(checkInterval)
         else
             print("🔍 No pets found")
             timeSinceLastFind = timeSinceLastFind + checkInterval
