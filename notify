@@ -12,11 +12,19 @@ local allowedPlaceIds = {
 
 getgenv().TargetPetNames = {
     "Graipuss Medussi",
-    "La Grande Combinasion", "Garama and Madundung", "Sammyni Spyderini",
-    "Pot Hotspot",
-    "Nuclearo Dinossauro",  
-    "Chicleteira Bicicleteira", "Los Combinasionas", "Dragon Cannelloni",
-    "Unclito Samito",
+    "La Grande Combinasion", "Garama and Madundung", "Los Nooo My Hotspotsitos",
+    "Pot Hotspot", "Nuclearo Dinossauro", "Chicleteira Bicicleteira", 
+    "Los Combinasionas", "Dragon Cannelloni", "Strawberry Elephant",
+    "La Supreme Combinasion", "Esok Sekolah", "Los Hotspotsitos",
+    "Ketupat Kepat", "Spaghetti Tualetti", "Nooo My Hotspot",
+    "Meowl", "To to to Sahur", "Los Chicleteiras",
+    "Ketchuru and Musturu", "Money Money Puggy", "Tictac Sahur",
+    "Quesadilla Crocodila", "Tacorita Bicicleta", "La Sahur Combinasion",
+    "Las Sis", "Celularcini Viciosini", "Los Bros", "Tralaledon",
+    "Los Tacoritas", "Los Primos", "La Spooky Grande", "Los 67",
+    "Los Mobilis", "La Extinct Grande", "Mariachi Corazoni", "67",
+    "Mieteteira Bicicleteira", "La Secret Combinasion", 
+    "Tang Tang Kelentang", "Burguro And Fryuro",
    
 }
 
