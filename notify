@@ -1,6 +1,7 @@
 --CONFIG
 getgenv().webhook = "https://discord.com/api/webhooks/1412573439662755991/totZqF-N-QytqQxFKM4GirpDF4j1Hjjyiy_a-RXBUdnjtg-4MAfW-Ve0h054IyvH8WiG"
 getgenv().websiteEndpoint = nil
+getgenv().serverHopDelay = 60 -- Tempo em segundos antes de trocar de servidor se não encontrar pets
 
 -- Allowed place IDs
 local allowedPlaceIds = {
@@ -10,19 +11,12 @@ local allowedPlaceIds = {
 
 getgenv().TargetPetNames = {
     "Graipuss Medussi",
-    "La Grande Combinasion", "Garama and Madundung", "Los Nooo My Hotspotsitos",
-    "Pot Hotspot", "Nuclearo Dinossauro", "Chicleteira Bicicleteira", 
-    "Los Combinasionas", "Dragon Cannelloni", "Strawberry Elephant",
-    "La Supreme Combinasion", "Esok Sekolah", "Los Hotspotsitos",
-    "Ketupat Kepat", "Spaghetti Tualetti", "Nooo My Hotspot",
-    "Meowl", "To to to Sahur", "Los Chicleteiras",
-    "Ketchuru and Musturu", "Money Money Puggy", "Tictac Sahur",
-    "Quesadilla Crocodila", "Tacorita Bicicleta", "La Sahur Combinasion",
-    "Las Sis", "Celularcini Viciosini", "Los Bros", "Tralaledon",
-    "Los Tacoritas", "Los Primos", "La Spooky Grande", "Los 67",
-    "Los Mobilis", "La Extinct Grande", "Mariachi Corazoni", "67",
-    "Mieteteira Bicicleteira", "La Secret Combinasion", 
-    "Tang Tang Kelentang", "Burguro And Fryuro",
+    "La Grande Combinasion", "Garama and Madundung", "Sammyni Spyderini",
+    "Pot Hotspot",
+    "Nuclearo Dinossauro",  
+    "Chicleteira Bicicleteira", "Los Combinasionas", "Dragon Cannelloni",
+    "Unclito Samito",
+   
 }
 
 -- SERVICES
@@ -30,19 +24,6 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
-
--- SERVER HOP CONFIG
-getgenv().HopConfig = {
-    MaxPlayersThreshold = 18, -- Se o servidor tiver mais players que isso, faz hop
-    HopDelay = 5, -- Delay entre tentativas de hop (segundos)
-    MaxHopAttempts = 10, -- Máximo de tentativas de hop
-    NoPetsHopDelay = 30, -- Delay para hop quando não encontrar pets (segundos)
-    MaxNoPetsHops = 50 -- Máximo de hops consecutivos sem encontrar pets
-}
-
-local hopAttempts = 0
-local noPetsHopCount = 0
-local lastHopTime = 0
 
 -- PRIVATE SERVER CHECK (works for VIP + Reserved)
 local function isPrivateServer()
@@ -58,70 +39,6 @@ local function buildJoinLink(placeId, jobId)
     )
 end
 
--- SERVER HOP FUNCTION
-local function serverHop()
-    local placeId = game.PlaceId
-    local servers = {}
-    local page = ""
-
-    -- Busca servidores disponíveis
-    for _ = 1, getgenv().HopConfig.MaxHopAttempts do
-        local success, result = pcall(function()
-            return game:GetService("HttpService"):JSONDecode(
-                game:HttpGet("https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Desc&limit=100" .. page)
-            )
-        end)
-
-        if success and result.data then
-            for _, server in ipairs(result.data) do
-                if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                    table.insert(servers, server)
-                end
-            end
-
-            if result.nextPageCursor then
-                page = "&cursor=" .. result.nextPageCursor
-            else
-                break
-            end
-        else
-            break
-        end
-        wait(0.5)
-    end
-
-    -- Ordena servidores por população (menos players primeiro)
-    table.sort(servers, function(a, b)
-        return a.playing < b.playing
-    end)
-
-    -- Tenta fazer teleport para um servidor com vaga
-    for _, server in ipairs(servers) do
-        if server.playing < getgenv().HopConfig.MaxPlayersThreshold then
-            local success, error = pcall(function()
-                TeleportService:TeleportToPlaceInstance(placeId, server.id, LocalPlayer)
-            end)
-            
-            if success then
-                print("🔄 Teleportando para servidor com " .. server.playing .. "/" .. server.maxPlayers .. " players")
-                return true
-            end
-        end
-        wait(0.1)
-    end
-
-    return false
-end
-
--- AUTO HOP CHECK
-local function shouldHop()
-    local currentPlayers = #Players:GetPlayers()
-    local isFull = currentPlayers >= Players.MaxPlayers
-    local isAlmostFull = currentPlayers >= getgenv().HopConfig.MaxPlayersThreshold
-    
-    return isFull or isAlmostFull
-end
-
 -- KICK CHECKS
 if isPrivateServer() then
     LocalPlayer:Kick("Kicked because in private server")
@@ -133,7 +50,7 @@ elseif not allowedPlaceIds[game.PlaceId] then
 end
 
 -- WEBHOOK SEND
-local function sendWebhook(foundPets, jobId, isHop, noPetsHop)
+local function sendWebhook(foundPets, jobId)
     local petCounts = {}
     for _, pet in ipairs(foundPets) do
         petCounts[pet] = (petCounts[pet] or 0) + 1
@@ -145,28 +62,13 @@ local function sendWebhook(foundPets, jobId, isHop, noPetsHop)
     end
 
     local joinLink = buildJoinLink(game.PlaceId, jobId)
-    
-    local title, color, description
-    if noPetsHop then
-        title = "🔍 No Pets Found - Server Hop"
-        color = 16753920 -- Laranja
-        description = "**Nenhum pet encontrado no servidor**\n**Fazendo hop automático...**\n**Hop consecutivo:** " .. noPetsHopCount .. "/" .. getgenv().HopConfig.MaxNoPetsHops
-    elseif isHop then
-        title = "🔄 Server Hop Executed"
-        color = 16753920 -- Laranja
-        description = "**Servidor estava cheio/cheiando**\n**Novo Job ID:** " .. jobId
-    else
-        title = "🐾 Pet(s) Found!"
-        color = 65280 -- Verde
-        description = "**Pet(s):**\n" .. table.concat(formattedPets, "\n")
-    end
 
     local embedData = {
         username = "Clufin Notify Free",
         embeds = { {
-            title = title,
-            description = description,
-            color = color,
+            title = "🐾 Pet(s) Found!",
+            description = "**Pet(s):**\n" .. table.concat(formattedPets, "\n"),
+            color = 65280,
             fields = {
                 {
                     name = "Players",
@@ -213,12 +115,19 @@ end
 -- PET CHECK
 local function checkForPets()
     local found = {}
+    local foundSet = {} -- Para evitar duplicatas
+    
     for _, obj in pairs(workspace:GetDescendants()) do
         if obj:IsA("Model") then
-            local nameLower = string.lower(obj.Name)
+            local objNameLower = string.lower(obj.Name)
             for _, target in pairs(getgenv().TargetPetNames) do
-                if string.find(nameLower, string.lower(target)) then
-                    table.insert(found, obj.Name)
+                local targetLower = string.lower(target)
+                if string.find(objNameLower, targetLower) then
+                    -- Usa o nome do target (da lista), não o nome do objeto
+                    if not foundSet[target] then
+                        table.insert(found, target)
+                        foundSet[target] = true
+                    end
                     break
                 end
             end
@@ -227,92 +136,124 @@ local function checkForPets()
     return found
 end
 
--- SERVER HOP HANDLER
-local function handleServerHop(reason)
-    if hopAttempts >= getgenv().HopConfig.MaxHopAttempts then
-        print("❌ Máximo de tentativas de hop atingido")
-        LocalPlayer:Kick("Max hop attempts reached")
-        return
-    end
-
-    hopAttempts = hopAttempts + 1
+-- SERVER HOP FUNCTION
+local function serverHop()
+    print("🔄 Procurando novo servidor...")
     
-    if reason == "no_pets" then
-        noPetsHopCount = noPetsHopCount + 1
-        print("🔍 Nenhum pet encontrado, fazendo hop... (" .. noPetsHopCount .. "/" .. getgenv().HopConfig.MaxNoPetsHops .. ")")
+    local servers = {}
+    local cursor = ""
+    local attempts = 0
+    local maxAttempts = 3
+    
+    -- Busca servidores disponíveis
+    repeat
+        attempts = attempts + 1
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(
+                string.format(
+                    "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100&cursor=%s",
+                    game.PlaceId,
+                    cursor
+                )
+            ))
+        end)
         
-        if noPetsHopCount >= getgenv().HopConfig.MaxNoPetsHops then
-            print("❌ Máximo de hops sem pets atingido")
-            LocalPlayer:Kick("Max no-pets hops reached")
-            return
+        if success and result.data then
+            for _, server in pairs(result.data) do
+                -- Ignora o servidor atual e servidores cheios
+                if server.id ~= game.JobId and server.playing < server.maxPlayers then
+                    table.insert(servers, server)
+                end
+            end
+            cursor = result.nextPageCursor or ""
+        else
+            warn("❌ Erro ao buscar servidores")
+            break
         end
-    else
-        noPetsHopCount = 0 -- Reseta o contador se o hop foi por outro motivo
-        print("🔄 Tentando server hop... (" .. hopAttempts .. "/" .. getgenv().HopConfig.MaxHopAttempts .. ")")
+        
+        task.wait(1)
+    until cursor == "" or attempts >= maxAttempts
+    
+    -- Tenta entrar em um servidor
+    if #servers > 0 then
+        -- Embaralha a lista de servidores
+        for i = #servers, 2, -1 do
+            local j = math.random(1, i)
+            servers[i], servers[j] = servers[j], servers[i]
+        end
+        
+        -- Tenta entrar nos servidores
+        for _, server in pairs(servers) do
+            local success, err = pcall(function()
+                print(string.format("🚀 Tentando entrar em servidor (%d/%d players)...", 
+                    server.playing, server.maxPlayers))
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
+            end)
+            
+            if success then
+                print("✅ Teleportando para novo servidor...")
+                return true
+            else
+                warn("❌ Falha ao entrar no servidor:", err)
+            end
+            
+            task.wait(2)
+        end
     end
     
-    local success = serverHop()
+    -- Se não conseguiu encontrar servidor, tenta teleporte normal
+    print("🔄 Tentando teleporte normal...")
+    local success = pcall(function()
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end)
+    
     if success then
-        if reason == "no_pets" then
-            sendWebhook({}, game.JobId, false, true)
-        else
-            sendWebhook({}, game.JobId, true, false)
-        end
+        print("✅ Teleportando...")
+        return true
     else
-        print("❌ Falha no server hop, tentando novamente em " .. getgenv().HopConfig.HopDelay .. " segundos")
-        wait(getgenv().HopConfig.HopDelay)
-        handleServerHop(reason)
+        warn("❌ Falha no teleporte")
+        return false
     end
 end
 
 -- MAIN LOOP
+local timeSinceLastFind = 0
+local checkInterval = 15
+
 task.spawn(function()
-    local lastPetCheck = os.time()
-    
     while true do
-        -- Verifica se precisa fazer server hop por estar cheio
-        if shouldHop() then
-            print("🚫 Servidor cheio/cheiando, iniciando server hop...")
-            handleServerHop("full_server")
-            break
-        end
-        
-        -- Verifica pets
         local petsFound = checkForPets()
         if #petsFound > 0 then
             print("✅ Pets found:", table.concat(petsFound, ", "))
-            sendWebhook(petsFound, game.JobId, false, false)
-            noPetsHopCount = 0 -- Reseta o contador quando encontrar pets
-            lastPetCheck = os.time()
+            sendWebhook(petsFound, game.JobId)
+            timeSinceLastFind = 0
+            
+            -- Aguarda mais tempo quando encontra pets
+            task.wait(30)
         else
             print("🔍 No pets found")
+            timeSinceLastFind = timeSinceLastFind + checkInterval
             
-            -- Verifica se deve fazer hop por não encontrar pets
-            local timeSinceLastPet = os.time() - lastPetCheck
-            if timeSinceLastPet >= getgenv().HopConfig.NoPetsHopDelay then
-                print("⏰ Tempo sem pets atingido, fazendo hop...")
-                handleServerHop("no_pets")
-                break
-            else
-                print("⏳ Aguardando " .. (getgenv().HopConfig.NoPetsHopDelay - timeSinceLastPet) .. "s antes do hop...")
+            -- Server hop se passou o tempo limite sem encontrar pets
+            if timeSinceLastFind >= getgenv().serverHopDelay then
+                print(string.format("⏰ %d segundos sem encontrar pets. Trocando de servidor...", 
+                    getgenv().serverHopDelay))
+                serverHop()
+                break -- Para o loop pois vai trocar de servidor
             end
+            
+            task.wait(checkInterval)
         end
-        
-        task.wait(15)
     end
 end)
 
--- CONEXÃO PERDIDA (fallback)
-LocalPlayer.OnTeleport:Connect(function(state)
-    if state == Enum.TeleportState.Failed then
-        print("❌ Teleporte falhou, tentando novamente...")
-        wait(3)
-        handleServerHop("teleport_failed")
+-- Proteção contra kick/disconnect
+game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
+    if child.Name == "ErrorPrompt" then
+        task.wait(1)
+        serverHop()
     end
 end)
 
-print("✅ Script carregado! Server Hop ativado.")
-print("📊 Configuração:")
-print("   • Hop se servidor > " .. getgenv().HopConfig.MaxPlayersThreshold .. " players")
-print("   • Hop se não encontrar pets em " .. getgenv().HopConfig.NoPetsHopDelay .. " segundos")
-print("   • Máximo de " .. getgenv().HopConfig.MaxNoPetsHops .. " hops consecutivos sem pets")
+print("🎮 Script iniciado! Procurando pets...")
+print(string.format("⏰ Server hop após %d segundos sem encontrar pets", getgenv().serverHopDelay))
