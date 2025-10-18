@@ -3,6 +3,7 @@ getgenv().webhook = "https://discord.com/api/webhooks/1412573439662755991/totZqF
 getgenv().websiteEndpoint = nil
 getgenv().serverHopDelay = 5
 getgenv().debugMode = true
+getgenv().fullScanMode = true -- MODO DE ANÁLISE COMPLETA
 
 -- Allowed place IDs
 local allowedPlaceIds = {
@@ -140,14 +141,51 @@ local function sendWebhook(foundPets, jobId)
             })
         end)
         if success then
-            print("✅ Webhook sent com", #validPets, "pets válidos")
+            print("✅ Webhook enviado com", #validPets, "pets")
         else
-            warn("❌ Webhook failed:", err)
+            warn("❌ Webhook falhou:", err)
         end
     end
 end
 
--- BUSCA APENAS NO WORKSPACE (pets spawned/equipados)
+-- ANÁLISE COMPLETA DA ESTRUTURA DO WORKSPACE
+local function fullWorkspaceScan()
+    print("\n🔬 ===== ANÁLISE COMPLETA DO WORKSPACE =====")
+    print("📂 Estrutura principal:")
+    
+    for _, obj in pairs(workspace:GetChildren()) do
+        print(string.format("  ├─ %s (%s) - %d filhos", obj.Name, obj.ClassName, #obj:GetChildren()))
+        
+        -- Mostra estrutura de pastas importantes
+        if obj:IsA("Folder") or obj:IsA("Model") then
+            for _, child in pairs(obj:GetChildren()) do
+                if #child:GetChildren() > 0 then
+                    print(string.format("    ├─ %s (%s) - %d filhos", child.Name, child.ClassName, #child:GetChildren()))
+                end
+            end
+        end
+    end
+    
+    print("\n🔍 Procurando por players e seus pets...")
+    
+    -- Verifica cada player no servidor
+    for _, player in pairs(Players:GetPlayers()) do
+        print(string.format("\n👤 Player: %s", player.Name))
+        
+        if player.Character then
+            print("  └─ Character encontrado")
+            for _, obj in pairs(player.Character:GetDescendants()) do
+                if obj:IsA("Model") or obj:IsA("Folder") then
+                    print(string.format("    ├─ %s (%s)", obj.Name, obj.ClassName))
+                end
+            end
+        end
+    end
+    
+    print("\n===== FIM DA ANÁLISE =====\n")
+end
+
+-- BUSCA INTELIGENTE
 local function checkForPets()
     local found = {}
     local targetNamesLower = {}
@@ -156,81 +194,68 @@ local function checkForPets()
         table.insert(targetNamesLower, string.lower(target))
     end
     
-    if getgenv().debugMode then
-        print("\n🔍 ===== ESCANEANDO WORKSPACE (PETS REAIS) =====")
+    if getgenv().fullScanMode then
+        fullWorkspaceScan()
+        getgenv().fullScanMode = false -- Faz scan completo só uma vez
     end
     
-    -- Busca APENAS no workspace (onde os pets spawned ficam)
-    for _, obj in pairs(workspace:GetDescendants()) do
-        pcall(function()
-            -- Ignora objetos da UI que podem estar no workspace
-            local fullName = obj:GetFullName()
-            if string.find(fullName:lower(), "gui") or 
-               string.find(fullName:lower(), "menu") or
-               string.find(fullName:lower(), "ui") or
-               string.find(fullName:lower(), "screen") then
-                return
-            end
-            
-            -- Verifica apenas Models, Parts e Configurations relevantes
-            if obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Configuration") then
-                
-                -- Lista de propriedades para verificar
-                local checks = {}
-                
-                -- Adiciona verificação do objeto principal
-                table.insert(checks, {obj = obj, prop = "Name"})
-                
-                -- Se for Model ou tem Configuration, verifica valores internos
-                if obj:IsA("Model") or obj:IsA("Configuration") then
-                    for _, child in pairs(obj:GetChildren()) do
-                        if child:IsA("StringValue") then
-                            table.insert(checks, {obj = child, prop = "Name"})
-                            table.insert(checks, {obj = child, prop = "Value"})
-                        elseif child:IsA("Configuration") then
-                            for _, subChild in pairs(child:GetChildren()) do
-                                if subChild:IsA("StringValue") then
-                                    table.insert(checks, {obj = subChild, prop = "Name"})
-                                    table.insert(checks, {obj = subChild, prop = "Value"})
-                                end
-                            end
-                        end
-                    end
-                end
-                
-                -- Verifica todas as propriedades coletadas
-                for _, check in ipairs(checks) do
-                    local success, value = pcall(function() return check.obj[check.prop] end)
-                    if success and type(value) == "string" and value ~= "" and not isUUID(value) then
-                        local valueLower = string.lower(value)
+    print("\n🔍 ===== BUSCANDO PETS =====")
+    
+    -- Estratégia 1: Busca em characters dos players
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            for _, obj in pairs(player.Character:GetDescendants()) do
+                pcall(function()
+                    for i, targetLower in ipairs(targetNamesLower) do
+                        local objName = string.lower(obj.Name)
                         
-                        for i, targetLower in ipairs(targetNamesLower) do
-                            -- Match exato ou contém o nome completo
-                            if valueLower == targetLower then
-                                -- Verifica se o objeto tem PrimaryPart ou é visível (indicando que é um pet real)
-                                local isRealPet = false
-                                if obj:IsA("Model") then
-                                    isRealPet = obj.PrimaryPart ~= nil or #obj:GetChildren() > 3
-                                elseif obj:IsA("Part") or obj:IsA("MeshPart") then
-                                    isRealPet = obj.Parent and obj.Parent:IsA("Model")
-                                else
-                                    isRealPet = true
-                                end
-                                
-                                if isRealPet then
-                                    table.insert(found, getgenv().TargetPetNames[i])
-                                    if getgenv().debugMode then
-                                        print(string.format("✅ PET REAL ENCONTRADO: '%s' em %s.%s (Path: %s)", 
-                                            getgenv().TargetPetNames[i], check.obj.ClassName, check.prop, obj:GetFullName()))
-                                    end
-                                end
-                                break
+                        if objName == targetLower or string.find(objName, targetLower, 1, true) then
+                            if not isUUID(obj.Name) then
+                                table.insert(found, getgenv().TargetPetNames[i])
+                                print(string.format("✅ Encontrado no character de %s: %s", player.Name, getgenv().TargetPetNames[i]))
+                            end
+                        end
+                        
+                        -- Verifica StringValues
+                        if obj:IsA("StringValue") then
+                            local value = string.lower(obj.Value or "")
+                            if value == targetLower and not isUUID(obj.Value) then
+                                table.insert(found, getgenv().TargetPetNames[i])
+                                print(string.format("✅ Encontrado via StringValue de %s: %s", player.Name, getgenv().TargetPetNames[i]))
                             end
                         end
                     end
-                end
+                end)
             end
-        end)
+        end
+    end
+    
+    -- Estratégia 2: Busca em pastas comuns de pets
+    local petFolderNames = {"Pets", "Pet", "EquippedPets", "ActivePets", "PlayerPets"}
+    for _, folderName in ipairs(petFolderNames) do
+        local folder = workspace:FindFirstChild(folderName, true)
+        if folder then
+            print(string.format("📁 Encontrada pasta: %s", folder:GetFullName()))
+            for _, obj in pairs(folder:GetDescendants()) do
+                pcall(function()
+                    for i, targetLower in ipairs(targetNamesLower) do
+                        local objName = string.lower(obj.Name)
+                        if objName == targetLower and not isUUID(obj.Name) then
+                            table.insert(found, getgenv().TargetPetNames[i])
+                            print(string.format("✅ Encontrado na pasta %s: %s", folderName, getgenv().TargetPetNames[i]))
+                        end
+                        
+                        if obj:IsA("StringValue") then
+                            local value = string.lower(obj.Value or "")
+                            if value == targetLower and not isUUID(obj.Value) then
+                                table.insert(found, getgenv().TargetPetNames[i])
+                                print(string.format("✅ Encontrado via StringValue em %s: %s", folderName, getgenv().TargetPetNames[i]))
+                            end
+                        end
+                    end
+                end)
+            end
+        end
     end
     
     -- Remove duplicatas
@@ -243,13 +268,8 @@ local function checkForPets()
         end
     end
     
-    if getgenv().debugMode then
-        print(string.format("📊 Pets REAIS encontrados: %d", #unique))
-        if #unique > 0 then
-            print("📝 Lista:", table.concat(unique, ", "))
-        end
-        print("===== FIM SCAN =====\n")
-    end
+    print(string.format("📊 Total de pets únicos: %d", #unique))
+    print("===== FIM BUSCA =====\n")
     
     return unique
 end
@@ -257,7 +277,7 @@ end
 -- MAIN LOOP
 task.spawn(function()
     print("⏳ Aguardando jogo carregar...")
-    task.wait(5)
+    task.wait(8) -- Mais tempo para garantir que tudo carregou
     
     local checkCount = 0
     local maxChecksBeforeHop = 2
@@ -266,15 +286,15 @@ task.spawn(function()
         local petsFound = checkForPets()
         
         if #petsFound > 0 then
-            print("✅ Pets REAIS encontrados:", table.concat(petsFound, ", "))
+            print("✅ PETS ENCONTRADOS:", table.concat(petsFound, ", "))
             sendWebhook(petsFound, game.JobId)
             checkCount = 0
         else
             checkCount = checkCount + 1
-            print(string.format("🔍 Nenhum pet real encontrado (Tentativa %d/%d)", checkCount, maxChecksBeforeHop))
+            print(string.format("⚠️ Nenhum pet encontrado (Tentativa %d/%d)", checkCount, maxChecksBeforeHop))
             
             if checkCount >= maxChecksBeforeHop then
-                print("⏭️ Server hop...")
+                print("⏭️ Dando server hop...")
                 task.wait(2)
                 serverHop()
                 return
@@ -285,4 +305,4 @@ task.spawn(function()
     end
 end)
 
-print("🚀 Script iniciado! Procurando pets REAIS no workspace...")
+print("🚀 Script iniciado! Modo de análise ativado...")
