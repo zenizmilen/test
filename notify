@@ -161,8 +161,8 @@ local function serverHop()
         
         if success and result.data then
             for _, server in pairs(result.data) do
-                -- Ignora o servidor atual e servidores cheios
-                if server.id ~= game.JobId and server.playing < server.maxPlayers then
+                -- Ignora o servidor atual, servidores cheios e servidores com menos de 4 pessoas
+                if server.id ~= game.JobId and server.playing < server.maxPlayers and server.playing >= 4 then
                     table.insert(servers, server)
                 end
             end
