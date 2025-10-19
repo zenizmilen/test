@@ -11,21 +11,16 @@ local allowedPlaceIds = {
 }
 
 getgenv().TargetPetNames = {
-    "Graipuss Medussi",
-    "La Grande Combinasion", "Garama and Madundung", "Los Nooo My Hotspotsitos",
-    "Pot Hotspot", "Nuclearo Dinossauro", "Chicleteira Bicicleteira", 
-    "Los Combinasionas", "Dragon Cannelloni", "Strawberry Elephant",
-    "La Supreme Combinasion", "Esok Sekolah", "Los Hotspotsitos",
-    "Ketupat Kepat", "Spaghetti Tualetti", "Nooo My Hotspot",
-    "To to to Sahur", "Los Chicleteiras", "Chicleteirina Bicicleterina",
-    "Ketchuru and Musturu", "Money Money Puggy", "Tictac Sahur",
-    "Quesadilla Crocodila", "Tacorita Bicicleta", "La Sahur Combinasion",
-    "Las Sis", "Celularcini Viciosini", "Los Bros", "Tralaledon",
-    "Los Tacoritas", "Los Primos", "La Spooky Grande",
-    "Los Mobilis", "La Extinct Grande", "Mariachi Corazoni",
-    "Mieteteira Bicicleteira", "La Secret Combinasion", 
-    "Tang Tang Kelentang", "Burguro And Fryuro",
-   
+    {name = "Graipuss Medussi", value = "Unknown"},
+    {name = "La Grande Combinasion", value = "Unknown"},
+    {name = "Garama and Madundung", value = "Unknown"},
+    {name = "Sammyni Spyderini", value = "Unknown"},
+    {name = "Pot Hotspot", value = "Unknown"},
+    {name = "Nuclearo Dinossauro", value = "Unknown"},
+    {name = "Chicleteira Bicicleteira", value = "Unknown"},
+    {name = "Los Combinasionas", value = "Unknown"},
+    {name = "Dragon Cannelloni", value = "Unknown"},
+    {name = "Unclito Samito", value = "Unknown"},
 }
 
 -- SERVICES
@@ -61,8 +56,9 @@ end
 -- WEBHOOK SEND
 local function sendWebhook(foundPets, jobId)
     local petCounts = {}
-    for _, pet in ipairs(foundPets) do
-        petCounts[pet] = (petCounts[pet] or 0) + 1
+    for _, petData in ipairs(foundPets) do
+        local key = petData.name .. " (" .. petData.value .. "/s)"
+        petCounts[key] = (petCounts[key] or 0) + 1
     end
 
     local formattedPets = {}
@@ -129,13 +125,13 @@ local function checkForPets()
     for _, obj in pairs(workspace:GetDescendants()) do
         if obj:IsA("Model") then
             local objNameLower = string.lower(obj.Name)
-            for _, target in pairs(getgenv().TargetPetNames) do
-                local targetLower = string.lower(target)
+            for _, targetData in pairs(getgenv().TargetPetNames) do
+                local targetLower = string.lower(targetData.name)
                 if string.find(objNameLower, targetLower) then
                     -- Usa o nome do target (da lista), não o nome do objeto
-                    if not foundSet[target] then
-                        table.insert(found, target)
-                        foundSet[target] = true
+                    if not foundSet[targetData.name] then
+                        table.insert(found, {name = targetData.name, value = targetData.value})
+                        foundSet[targetData.name] = true
                     end
                     break
                 end
@@ -169,8 +165,11 @@ local function serverHop()
         
         if success and result.data then
             for _, server in pairs(result.data) do
-                -- Ignora o servidor atual, servidores cheios e servidores com menos de 4 pessoas
-                if server.id ~= game.JobId and server.playing < server.maxPlayers and server.playing >= 4 then
+                -- Ignora o servidor atual, servidores cheios, servidores com menos de 4 pessoas e servidores já visitados
+                if server.id ~= game.JobId 
+                    and server.playing < server.maxPlayers 
+                    and server.playing >= 4 
+                    and not visitedServers[server.id] then
                     table.insert(servers, server)
                 end
             end
@@ -210,6 +209,8 @@ local function serverHop()
                 local success, err = pcall(function()
                     print(string.format("🚀 Tentando entrar em servidor (%d/%d players)...", 
                         server.playing, server.maxPlayers))
+                    -- Marca o servidor como visitado antes de tentar entrar
+                    visitedServers[server.id] = true
                     TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
                 end)
                 
@@ -245,12 +246,21 @@ end
 local timeSinceLastFind = 0
 local checkInterval = 2 -- Checa a cada 2 segundos
 local lastWebhookTime = 0
+local visitedServers = {} -- Armazena servidores já visitados
 
 task.spawn(function()
+    -- Marca o servidor atual como visitado
+    visitedServers[game.JobId] = true
+    print(string.format("📝 Servidor atual marcado: %s", game.JobId))
+    
     while true do
         local petsFound = checkForPets()
         if #petsFound > 0 then
-            print("✅ Pets found:", table.concat(petsFound, ", "))
+            local petNames = {}
+            for _, petData in ipairs(petsFound) do
+                table.insert(petNames, petData.name)
+            end
+            print("✅ Pets found:", table.concat(petNames, ", "))
             
             -- Envia webhook apenas se passou o tempo de cooldown
             local currentTime = tick()
