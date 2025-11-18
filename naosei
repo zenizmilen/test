@@ -1,0 +1,10 @@
+local a=Enum.KeyCode.F local b=Vector3.new(12,1,12) local c=3 local d=game.Players.LocalPlayer local e=false local f local g local h=0
+local function i() if f then f:Destroy() end f=Instance.new("Part") f.Size=b f.Anchored=true f.Color=Color3.fromRGB(0,0,0) f.Material=Enum.Material.SmoothPlastic f.Name="PlataformaF" f.Parent=workspace g=Instance.new("Part") g.Size=Vector3.new(b.X+0.2,0.2,b.Z+0.2) g.Anchored=true g.CanCollide=false g.Material=Enum.Material.Neon g.Color=Color3.fromHSV(0,1,1) g.Name="BordaF" g.Parent=workspace end
+local function j() if not e or not f then return end local k=d.Character if not k or not k:FindFirstChild("HumanoidRootPart") then return end local l=k.HumanoidRootPart f.CFrame=CFrame.new(l.Position.X,l.Position.Y-c,l.Position.Z) g.CFrame=f.CFrame+Vector3.new(0,0.6,0) h=(h+0.01)%1 g.Color=Color3.fromHSV(h,1,1) end
+local function m() e=not e if e then i() else if f then f:Destroy() end if g then g:Destroy() end end end
+game:GetService("UserInputService").InputBegan:Connect(function(n,o) if o then return end if n.KeyCode==a then m() end end)
+game:GetService("RunService").RenderStepped:Connect(j)
+local p=Instance.new("ScreenGui") p.ResetOnSpawn=false p.Parent=d:WaitForChild("PlayerGui")
+local q=Instance.new("TextButton",p) q.Size=UDim2.new(0,170,0,55) q.Position=UDim2.new(0.05,0,0.8,0) q.Text="⚡ Liga Plataforma ⚡" q.BackgroundColor3=Color3.fromRGB(0,0,0) q.TextScaled=true q.Font=Enum.Font.GothamBlack q.TextColor3=Color3.fromRGB(255,255,255) q.BorderSizePixel=2 q.BorderColor3=Color3.fromRGB(255,255,255) q.AutoButtonColor=false
+Instance.new("UICorner",q).CornerRadius=UDim.new(0,10)
+q.MouseButton1Click:Connect(function() m() if e then q.Text="🛑 Desliga Plataforma 🛑" else q.Text="⚡ Liga Plataforma ⚡" end end)
