@@ -1,0 +1,63 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Debris = workspace:WaitForChild("Debris")
+
+local TARGET_SIZE = Vector3.new(1e5, 1e5, 1e5) -- tamanho desejado
+
+local function getClosestPlayer()
+    local closest = nil
+    local smallestDist = math.huge
+
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    local myHRP = myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return end
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local theirHRP = plr.Character.HumanoidRootPart
+            local dist = (myHRP.Position - theirHRP.Position).Magnitude
+
+            if dist < smallestDist then
+                smallestDist = dist
+                closest = plr
+            end
+        end
+    end
+
+    return closest
+end
+
+
+local function teleportPlayerToMain(mainPart)
+    local target = getClosestPlayer()
+    if not target then return end
+
+    local targetChar = target.Character
+    if not targetChar then return end
+
+    local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
+    if not targetHRP then return end
+
+    -- Teleporta o player alvo para cima do Main
+    targetHRP.CFrame = mainPart.CFrame + Vector3.new(0, 6, 0)
+end
+
+
+Debris.ChildAdded:Connect(function(child)
+    if child.Name == "Blackhole" then
+        task.spawn(function()
+            local main = child:WaitForChild("Main", 3)
+            if main and main:IsA("BasePart") then
+                
+                -- AUMENTAR O TAMANHO DO MAIN
+                main.Size = TARGET_SIZE
+
+                -- Teleportar o alvo
+                teleportPlayerToMain(main)
+            end
+        end)
+    end
+end)
+
+anti hit
