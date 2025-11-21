@@ -1,26 +1,28 @@
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Debris = workspace:WaitForChild("Debris")
+local lp = Players.LocalPlayer
+local debris = workspace:WaitForChild("Debris")
 
-local TARGET_SIZE = Vector3.new(1e5, 1e5, 1e5) -- tamanho desejado
+local bigSize = Vector3.new(1e5,1e5,1e5)
 
-local function getClosestPlayer()
-    local closest = nil
-    local smallestDist = math.huge
+local function getClosest()
+    local me = lp.Character
+    if not me then return end
+    local hrp = me:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
 
-    local myChar = LocalPlayer.Character
-    if not myChar then return end
-    local myHRP = myChar:FindFirstChild("HumanoidRootPart")
-    if not myHRP then return end
+    local closest
+    local dist = math.huge
 
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            local theirHRP = plr.Character.HumanoidRootPart
-            local dist = (myHRP.Position - theirHRP.Position).Magnitude
-
-            if dist < smallestDist then
-                smallestDist = dist
-                closest = plr
+    for _,plr in ipairs(Players:GetPlayers()) do
+        if plr ~= lp then
+            local c = plr.Character
+            local t = c and c:FindFirstChild("HumanoidRootPart")
+            if t then
+                local d = (hrp.Position - t.Position).Magnitude
+                if d < dist then
+                    dist = d
+                    closest = plr
+                end
             end
         end
     end
@@ -28,36 +30,25 @@ local function getClosestPlayer()
     return closest
 end
 
+local function tp(main)
+    local p = getClosest()
+    if not p then return end
+    local c = p.Character
+    if not c then return end
+    local h = c:FindFirstChild("HumanoidRootPart")
+    if not h then return end
 
-local function teleportPlayerToMain(mainPart)
-    local target = getClosestPlayer()
-    if not target then return end
-
-    local targetChar = target.Character
-    if not targetChar then return end
-
-    local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
-    if not targetHRP then return end
-
-    -- Teleporta o player alvo para cima do Main
-    targetHRP.CFrame = mainPart.CFrame + Vector3.new(0, 6, 0)
+    h.CFrame = main.CFrame + Vector3.new(0,6,0)
 end
 
-
-Debris.ChildAdded:Connect(function(child)
-    if child.Name == "Blackhole" then
+debris.ChildAdded:Connect(function(v)
+    if v.Name == "Blackhole" then
         task.spawn(function()
-            local main = child:WaitForChild("Main", 3)
-            if main and main:IsA("BasePart") then
-                
-                -- AUMENTAR O TAMANHO DO MAIN
-                main.Size = TARGET_SIZE
-
-                -- Teleportar o alvo
-                teleportPlayerToMain(main)
+            local m = v:WaitForChild("Main",3)
+            if m and m:IsA("BasePart") then
+                m.Size = bigSize
+                tp(m)
             end
         end)
     end
 end)
-
-anti hit
