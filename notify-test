@@ -10,45 +10,11 @@ local allowedPlaceIds = {
 
 getgenv().TargetPetNames = {
     "Noobini Pizzanini",
-    "Burguro And Fryuro",
-    "Celularcini Viciosini",
-    "Chicleteira Bicicleteira",
-    "Dragon Cannelloni",
-    "Esok Sekolah",
-    "Garama and Madundung",
-    "Graipuss Medussi",
-    "Ketchuru and Musturu",
-    "Ketupat Kepat",
-    "La Extinct Grande",
-    "La Grande Combinasion",
-    "La Sahur Combinasion",
-    "La Secret Combinasion",
-    "La Spooky Grande",
-    "La Supreme Combinasion",
-    "Las Sis",
-    "Los Bros",
-    "Los Chicleteiras",
-    "Los Combinasionas",
-    "Los Hotspotsitos",
-    "Los Mobilis",
-    "Los Nooo My Hotspotsitos",
-    "Los Primos",
-    "Los Tacoritas",
-    "Mariachi Corazoni",
-    "Meowl",
-    "Mieteteira Bicicleteira",
-    "Money Money Puggy",
-    "Nooo My Hotspot",
-    "Nuclearo Dinossauro",
+    "La Grande Combinasion", "Garama and Madundung", "Sammyni Spyderini",
     "Pot Hotspot",
-    "Quesadilla Crocodila",
-    "Spaghetti Tualetti",
-    "Strawberry Elephant",
-    "Tang Tang Kelentang",
-    "Tacorita Bicicleta",
-    "Tictac Sahur",
-    "To to to Sahur",
-    "Tralaledon",
+    "Nuclearo Dinossauro",  
+    "Chicleteira Bicicleteira", "Los Combinasionas", "Dragon Cannelloni",
+    "Unclito Samito",
 }
 
 -- SERVICES
@@ -91,53 +57,55 @@ local function formatMoney(value)
     elseif value >= 1e3 then
         return string.format("$%.1fK/s", value / 1e3)
     else
-        return string.format("$%.1f/s", value)
+        return string.format("$%.2f/s", value)
     end
 end
 
--- GET GENERATION VALUE
-local function getGenerationValue(petModel)
-    -- Procura o objeto Generation em todos os descendentes
-    for _, descendant in pairs(petModel:GetDescendants()) do
-        if descendant.Name == "Generation" then
-            -- Tenta pegar o valor de diferentes formas
-            if descendant:IsA("NumberValue") or descendant:IsA("IntValue") then
-                return descendant.Value
-            elseif descendant:IsA("StringValue") then
-                return tonumber(descendant.Value)
-            elseif pcall(function() return descendant.Value end) then
-                local val = descendant.Value
-                if type(val) == "number" then
-                    return val
-                elseif type(val) == "string" then
-                    return tonumber(val)
+-- GET GENERATION FROM PET
+local function getGeneration(petModel)
+    -- Procura em toda a hierarquia do pet
+    for _, child in pairs(petModel:GetDescendants()) do
+        if child.Name == "Generation" then
+            -- Se for um NumberValue ou IntValue
+            if child:IsA("NumberValue") or child:IsA("IntValue") then
+                if child.Value and child.Value > 0 then
+                    return formatMoney(child.Value)
+                end
+            end
+            -- Se tiver uma propriedade Value
+            if child.Value then
+                local numValue = tonumber(child.Value)
+                if numValue and numValue > 0 then
+                    return formatMoney(numValue)
                 end
             end
         end
     end
+    
+    -- Se não encontrou, retorna nil para não incluir no webhook
     return nil
 end
 
 -- WEBHOOK SEND
 local function sendWebhook(foundPets, jobId)
-    local petCounts = {}
-    for _, petData in ipairs(foundPets) do
-        local displayName = petData.name .. " (" .. petData.generation .. ")"
-        petCounts[displayName] = (petCounts[displayName] or 0) + 1
+    local petData = {}
+    for _, petInfo in ipairs(foundPets) do
+        local key = petInfo.name .. " (" .. petInfo.generation .. ")"
+        petData[key] = (petData[key] or 0) + 1
     end
 
     local formattedPets = {}
-    for petName, count in pairs(petCounts) do
-        table.insert(formattedPets, petName .. (count > 1 and " x" .. count or ""))
+    for petName, count in pairs(petData) do
+        table.insert(formattedPets, petName .. (count > 1 and " **x" .. count .. "**" or ""))
     end
 
     local joinLink = buildJoinLink(game.PlaceId, jobId)
 
     local embedData = {
-        username = "Clufin Notify Free",
+        username = "ClufinOFC",
         embeds = { {
-            title = "🐾 Pet(s) Found!",
-            description = "**Pet(s):**\n" .. table.concat(formattedPets, "\n"),
+            title = "Brainrots Founds I Clufin NOTIFIER",
+            description = "Pet(s):\n" .. table.concat(formattedPets, "\n"),
             color = 65280,
             fields = {
                 {
@@ -156,7 +124,7 @@ local function sendWebhook(foundPets, jobId)
                     inline = false
                 }
             },
-            footer = { text = "Free Notify" },
+            footer = { text = "ClufinOFC" },
             timestamp = DateTime.now():ToIsoDate()
         } }
     }
@@ -185,21 +153,40 @@ end
 -- PET CHECK
 local function checkForPets()
     local found = {}
+    local processedPets = {} -- Para evitar duplicatas
+    
     for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") then
+        if obj:IsA("Model") and not processedPets[obj] then
             local nameLower = string.lower(obj.Name)
             for _, target in pairs(getgenv().TargetPetNames) do
-                if string.find(nameLower, string.lower(target)) then
-                    -- Pega o valor do Generation
-                    local genValue = getGenerationValue(obj)
-                    local genDisplay = genValue and formatMoney(genValue) or "Unknown"
+                local targetLower = string.lower(target)
+                -- Verifica se o nome é exatamente igual (não apenas contém)
+                if nameLower == targetLower or obj.Name == target then
+                    processedPets[obj] = true
+                    local generation = getGeneration(obj)
                     
-                    table.insert(found, {
-                        name = obj.Name,
-                        generation = genDisplay
-                    })
+                    -- Debug: mostra a estrutura do pet
+                    print("═══════════════════════════════")
+                    print("🔍 Pet encontrado:", obj.Name)
+                    print("📁 Caminho completo:", obj:GetFullName())
+                    print("📋 Descendentes:")
+                    for _, desc in pairs(obj:GetDescendants()) do
+                        if desc.Name == "Generation" or string.find(string.lower(desc.Name), "gen") then
+                            print("  ├─", desc.Name, "│", desc.ClassName, "│ Value:", desc.Value or "N/A")
+                        end
+                    end
+                    print("═══════════════════════════════")
                     
-                    print("✅ Pet found:", obj.Name, "| Generation:", genDisplay)
+                    -- Só adiciona se encontrou um valor de geração válido
+                    if generation then
+                        table.insert(found, {
+                            name = obj.Name,
+                            generation = generation
+                        })
+                        print("✅ Adicionado com generation:", generation)
+                    else
+                        print("⚠️ Generation não encontrado ou = 0")
+                    end
                     break
                 end
             end
@@ -213,6 +200,11 @@ task.spawn(function()
     while true do
         local petsFound = checkForPets()
         if #petsFound > 0 then
+            local petNames = {}
+            for _, petInfo in ipairs(petsFound) do
+                table.insert(petNames, petInfo.name .. " (" .. petInfo.generation .. ")")
+            end
+            print("✅ Pets found:", table.concat(petNames, ", "))
             sendWebhook(petsFound, game.JobId)
         else
             print("🔍 No pets found")
