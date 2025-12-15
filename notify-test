@@ -10,11 +10,45 @@ local allowedPlaceIds = {
 
 getgenv().TargetPetNames = {
     "Noobini Pizzanini",
-    "La Grande Combinasion", "Garama and Madundung", "Sammyni Spyderini",
+    "Burguro And Fryuro",
+    "Celularcini Viciosini",
+    "Chicleteira Bicicleteira",
+    "Dragon Cannelloni",
+    "Esok Sekolah",
+    "Garama and Madundung",
+    "Graipuss Medussi",
+    "Ketchuru and Musturu",
+    "Ketupat Kepat",
+    "La Extinct Grande",
+    "La Grande Combinasion",
+    "La Sahur Combinasion",
+    "La Secret Combinasion",
+    "La Spooky Grande",
+    "La Supreme Combinasion",
+    "Las Sis",
+    "Los Bros",
+    "Los Chicleteiras",
+    "Los Combinasionas",
+    "Los Hotspotsitos",
+    "Los Mobilis",
+    "Los Nooo My Hotspotsitos",
+    "Los Primos",
+    "Los Tacoritas",
+    "Mariachi Corazoni",
+    "Meowl",
+    "Mieteteira Bicicleteira",
+    "Money Money Puggy",
+    "Nooo My Hotspot",
+    "Nuclearo Dinossauro",
     "Pot Hotspot",
-    "Nuclearo Dinossauro",  
-    "Chicleteira Bicicleteira", "Los Combinasionas", "Dragon Cannelloni",
-    "Unclito Samito",
+    "Quesadilla Crocodila",
+    "Spaghetti Tualetti",
+    "Strawberry Elephant",
+    "Tang Tang Kelentang",
+    "Tacorita Bicicleta",
+    "Tictac Sahur",
+    "To to to Sahur",
+    "Tralaledon",
 }
 
 -- SERVICES
@@ -57,48 +91,53 @@ local function formatMoney(value)
     elseif value >= 1e3 then
         return string.format("$%.1fK/s", value / 1e3)
     else
-        return string.format("$%.2f/s", value)
+        return string.format("$%.1f/s", value)
     end
 end
 
--- GET GENERATION FROM PET
-local function getGeneration(petModel)
-    -- Tenta encontrar o objeto Generation dentro do pet
-    local generation = petModel:FindFirstChild("Generation", true)
-    if generation then
-        -- Se for um NumberValue ou IntValue, retorna o valor formatado
-        if generation:IsA("NumberValue") or generation:IsA("IntValue") then
-            return formatMoney(generation.Value)
-        end
-        -- Tenta converter para número se for string
-        local numValue = tonumber(generation.Value)
-        if numValue then
-            return formatMoney(numValue)
+-- GET GENERATION VALUE
+local function getGenerationValue(petModel)
+    -- Procura o objeto Generation em todos os descendentes
+    for _, descendant in pairs(petModel:GetDescendants()) do
+        if descendant.Name == "Generation" then
+            -- Tenta pegar o valor de diferentes formas
+            if descendant:IsA("NumberValue") or descendant:IsA("IntValue") then
+                return descendant.Value
+            elseif descendant:IsA("StringValue") then
+                return tonumber(descendant.Value)
+            elseif pcall(function() return descendant.Value end) then
+                local val = descendant.Value
+                if type(val) == "number" then
+                    return val
+                elseif type(val) == "string" then
+                    return tonumber(val)
+                end
+            end
         end
     end
-    return "$0/s"
+    return nil
 end
 
 -- WEBHOOK SEND
 local function sendWebhook(foundPets, jobId)
-    local petData = {}
-    for _, petInfo in ipairs(foundPets) do
-        local key = petInfo.name .. " (" .. petInfo.generation .. ")"
-        petData[key] = (petData[key] or 0) + 1
+    local petCounts = {}
+    for _, petData in ipairs(foundPets) do
+        local displayName = petData.name .. " (" .. petData.generation .. ")"
+        petCounts[displayName] = (petCounts[displayName] or 0) + 1
     end
 
     local formattedPets = {}
-    for petName, count in pairs(petData) do
-        table.insert(formattedPets, petName .. (count > 1 and " **x" .. count .. "**" or ""))
+    for petName, count in pairs(petCounts) do
+        table.insert(formattedPets, petName .. (count > 1 and " x" .. count or ""))
     end
 
     local joinLink = buildJoinLink(game.PlaceId, jobId)
 
     local embedData = {
-        username = "ClufinOFC",
+        username = "Clufin Notify Free",
         embeds = { {
-            title = "Brainrots Founds I Clufin NOTIFIER",
-            description = "Pet(s):\n" .. table.concat(formattedPets, "\n"),
+            title = "🐾 Pet(s) Found!",
+            description = "**Pet(s):**\n" .. table.concat(formattedPets, "\n"),
             color = 65280,
             fields = {
                 {
@@ -117,7 +156,7 @@ local function sendWebhook(foundPets, jobId)
                     inline = false
                 }
             },
-            footer = { text = "ClufinOFC" },
+            footer = { text = "Free Notify" },
             timestamp = DateTime.now():ToIsoDate()
         } }
     }
@@ -151,11 +190,16 @@ local function checkForPets()
             local nameLower = string.lower(obj.Name)
             for _, target in pairs(getgenv().TargetPetNames) do
                 if string.find(nameLower, string.lower(target)) then
-                    local generation = getGeneration(obj)
+                    -- Pega o valor do Generation
+                    local genValue = getGenerationValue(obj)
+                    local genDisplay = genValue and formatMoney(genValue) or "Unknown"
+                    
                     table.insert(found, {
                         name = obj.Name,
-                        generation = generation
+                        generation = genDisplay
                     })
+                    
+                    print("✅ Pet found:", obj.Name, "| Generation:", genDisplay)
                     break
                 end
             end
@@ -169,11 +213,6 @@ task.spawn(function()
     while true do
         local petsFound = checkForPets()
         if #petsFound > 0 then
-            local petNames = {}
-            for _, petInfo in ipairs(petsFound) do
-                table.insert(petNames, petInfo.name .. " (" .. petInfo.generation .. ")")
-            end
-            print("✅ Pets found:", table.concat(petNames, ", "))
             sendWebhook(petsFound, game.JobId)
         else
             print("🔍 No pets found")
