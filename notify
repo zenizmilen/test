@@ -11,7 +11,7 @@ local allowedPlaceIds = {
 }
 
 getgenv().TargetPetNames = {
-    "Graipuss Medussi",
+    "Noobini Pizzanini",
     "La Grande Combinasion", "Garama and Madundung", "Los Nooo My Hotspotsitos",
     "Pot Hotspot", "Nuclearo Dinossauro", "Chicleteira Bicicleteira", 
     "Los Combinasionas", "Dragon Cannelloni", "Strawberry Elephant",
